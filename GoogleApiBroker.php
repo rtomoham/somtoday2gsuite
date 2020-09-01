@@ -78,6 +78,13 @@ class GoogleApiBroker {
       $event = $this->calendarService->events->insert($googleCalendarId, $event);
     } catch (Exception $e) {
       echo 'Exception $e: ' . $e->getMessage();
+      if (403 == $e->getCode()) {
+        // We hit a rate limit
+        $this->resolveRateLimit();
+        $this->addEvent($classDetails, $googleCalendarId);
+      } else {
+        throw ($e);
+      }
     }
   }
 
