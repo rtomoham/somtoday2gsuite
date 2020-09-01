@@ -50,6 +50,23 @@ class HtmlParser {
     return false;
   }
   
+  function isError($htmlString) {
+    $this->domDoc->loadHTML($this->cleanUpString($htmlString));
+    libxml_clear_errors();
+
+    $divs = $this->domDoc->getElementsByTagName('div');
+    if (is_null($divs)) {
+      return false;
+    }
+    foreach ($divs as $div) {
+      $class = $iframe->getAttribute('class');
+      if (0 == strcmp('stpanel--error--message', $class)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
   private function findForm($htmlString, $formName) {
     $pos = strpos($htmlString, $formName);
     if (false === $pos) {
