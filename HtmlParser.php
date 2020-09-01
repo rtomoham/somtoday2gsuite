@@ -59,7 +59,7 @@ class HtmlParser {
       return false;
     }
     foreach ($divs as $div) {
-      $class = $iframe->getAttribute('class');
+      $class = $div->getAttribute('class');
       if (0 == strcmp('stpanel--error--message', $class)) {
         return true;
       }
