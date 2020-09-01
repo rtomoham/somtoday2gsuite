@@ -11,7 +11,7 @@ include_once('BackoffTimer.php');
 class GoogleApiBroker {
   private static $instance = NULL;
   private const FILENAME_GOOGLE_SERVICE_ACCOUNT =
-    PATH . 'somtoday-SA.json';
+    PATH_DATA . '/somtoday-SA.json';
   private const STRING_CALENDAR_DESCRIPTION_PREFIX = 'AUG.';
 
   private $calendarService;
@@ -36,7 +36,7 @@ class GoogleApiBroker {
     if (is_null(self::$instance)) { self::$instance = new GoogleApiBroker(); }
     return self::$instance;
   }
-  
+
   function setGoogleCalendarAccount($googleCalendarAccount) {
     $this->googleCalendarAccount = $googleCalendarAccount;
     $this->client->setSubject($googleCalendarAccount->getAccount());
@@ -50,7 +50,7 @@ class GoogleApiBroker {
       );
     }
   }
-  
+
   function addClasses($classes, $googleCalendarId) {
     foreach ($classes as $classDetails) {
       $this->addEvent($classDetails, $googleCalendarId);
@@ -66,14 +66,14 @@ class GoogleApiBroker {
     $classArray = array(
       'summary' => self::STRING_CALENDAR_DESCRIPTION_PREFIX . $classDetails->getName(),
       'location' => $classDetails->getLocation(),
-      'description' => 
+      'description' =>
         $classDetails->getDescription() .
         "\n\nLast update: " . date('Y-m-d H:i') . 'h',
       'start' => $classDetails->getStart(),
       'end' => $classDetails->getEnd(),
     );
 
-    try { 
+    try {
       $event = new Google_Service_Calendar_Event($classArray);
       $event = $this->calendarService->events->insert($googleCalendarId, $event);
     } catch (Exception $e) {
@@ -131,7 +131,7 @@ class GoogleApiBroker {
     }
     return $events;
   }
-  
+
   function refreshCalendar($classes) {
     $googleCalendarId = $this->googleCalendarAccount->getIdentifier();
     $this->clearCalendar($googleCalendarId);
@@ -141,7 +141,7 @@ class GoogleApiBroker {
   function processIniFile() {
     $settings = getSettings();
     $filenames = $settings[STRING_FILENAMES];
-    $this->filenameServiceAccount = PATH . $filenames[STRING_SERVICE_ACCOUNT];
+    $this->filenameServiceAccount = PATH_DATA . '/' . $filenames[STRING_SERVICE_ACCOUNT];
   }
 
 
