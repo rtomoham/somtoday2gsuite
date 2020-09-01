@@ -23,6 +23,10 @@ class BackoffTimer {
     $this->backoff_time_long = $long;
   }
 
+  function incrementShortSleep() {
+    $this->backoff_time_short = $this->backoff_time_short * 2;
+  }
+
   function sleep($message, $long = false) {
     if ($long) {
       $sleep = $this->backoff_time_long;
