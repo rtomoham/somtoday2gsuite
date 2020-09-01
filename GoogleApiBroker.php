@@ -137,6 +137,12 @@ class GoogleApiBroker {
     $this->clearCalendar($googleCalendarId);
     $this->addClasses($classes, $googleCalendarId);
   }
+  
+  function resolveRateLimit() {
+    $timer = BackoffTimer::getInstance();
+    $timer->incrementShortSleep();
+    $timer->sleep('Hit max rate, increased short sleep', true);
+  }
 
   function processIniFile() {
     $settings = getSettings();
