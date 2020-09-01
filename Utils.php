@@ -1,6 +1,7 @@
 <?php
 
-define('PATH', '/mnt/somtoday2gsuite/');
+define('PATH_PROGRAM', '/etc/somtoday2gsuite');
+define('PATH_DATA', '/mnt/somtoday2gsuite');
 define('FILENAME_INI', 'somtoday2gsuite.ini');
 
 define('MY_TIMEZONE', 'Europe/Amsterdam');
@@ -32,9 +33,9 @@ function getHeaderString($header) {
 }
 
 function getSettings() {
-  if (file_exists(PATH . FILENAME_INI)) {
+  if (file_exists(PATH_DATA . '/' . FILENAME_INI)) {
     // return the settings from the file at the path of data files
-    return parse_ini_file(PATH . FILENAME_INI, true);
+    return parse_ini_file(PATH_DATA . '/' . FILENAME_INI, true);
   } else {
     // return the settings from the file in the current directory
     return parse_ini_file(FILENAME_INI, true);
