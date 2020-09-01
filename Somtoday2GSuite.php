@@ -61,6 +61,9 @@ class Somtoday2GSuite {
     if ($this->htmlParser->isUpdating($response)) {
       // The site is being updated. So we cannot do anything.
       error_log('STOP: somtoday is in maintenance mode.');
+    } elseif ($this->htmlParser->isError($response)) {
+      // We received an error message. So we cannot do anything.
+      error_log('STOP: somtoday threw an error.');
     } else {
       if ($this->htmlParser->findSignInForm($response)) {    
         $action = $this->htmlParser->getAction($response);
