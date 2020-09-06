@@ -2,5 +2,5 @@
 
 cd /mnt/somtoday2gsuite
 echo $TZ > /etc/timezone
-php /etc/somtoday2gsuite/updateCrontab.php
+php /etc/somtoday2gsuite/updateCrontab.php somtoday2gsuite
 /sbin/my_init
