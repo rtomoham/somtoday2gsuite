@@ -1,9 +1,10 @@
 <?php
 
-include 'Utils.php';
-include_once 'HtmlParser.php';
-include_once 'SomtodayUser.php';
-require_once 'HTTP/Request2.php';
+require 'Utils.php';
+require_once('HtmlParser.php');
+require_once('SomtodayUser.php');
+require_once('HTTP/Request2.php');
+require_once('BackoffTimer.php');
 
 class SomtodayWebBroker {
 
@@ -51,6 +52,29 @@ class SomtodayWebBroker {
   function __destruct() {
     curl_close($this->curl);
   }
+
+  function fetchHomeworkDetails($classDetails, $baseUrl) {
+
+    $timer = BackOffTimer::getInstance();
+    $homework = $classDetails->getHomework();
+
+    $url =
+      'https://augustinianum-elo.somtoday.nl/home' .
+      $homework->getServerCall();
+    $referer = 'https://augustinianum-elo.somtoday.nl/home/roster';
+    $id = $homework->getId();
+    $payload = 'argCount=0&methodName=click&callId=1';
+
+    $this->makeAjaxRequest(
+      $url,
+      $referer,
+      $baseUrl,
+      $id,
+      $payload);
+
+    $timer->sleep('Fetched homework details');
+  }
+
   function getAugustinianumElo() {
     return $this->makeGetRequest('https://augustinianum-elo.somtoday.nl/', NULL);
   }
@@ -69,17 +93,40 @@ class SomtodayWebBroker {
 
   function getRoster() {
     $this->makeGetRequest('https://augustinianum-elo.somtoday.nl/home/roster', NULL);
-    $classes = $this->htmlParser->getClasses($this->response);
+    $homeworkServerCalls =
+      $this->htmlParser->getHomeworkServerCalls($this->response);
+    $classes =
+      $this->htmlParser->getClasses($this->response, $homeworkServerCalls);
+
+    $baseUrl = $this->htmlParser->getBaseUrl($this->response);
+    foreach ($classes as $classDetails) {
+      if ($classDetails->hasHomework()) {
+        $this->fetchHomeworkDetails($classDetails, $baseUrl);
+      }
+    }
 
     // Create a new DateTime object
     $nextMonday = new DateTime();
     // Modify the date it contains
     $nextMonday->modify('next monday');
     // Output
-    echo $nextMonday->format('d-m-Y');
+//    echo $nextMonday->format('d-m-Y');
 
     $this->makeGetRequest('https://augustinianum-elo.somtoday.nl/home/roster?datum=' . $nextMonday->format('d-m-Y'), NULL);
-    $classes = array_merge($classes, $this->htmlParser->getClasses($this->response));
+
+    $homeworkServerCalls =
+      $this->htmlParser->getHomeworkServerCalls($this->response);
+    $nextWeekClasses =
+      $this->htmlParser->getClasses($this->response, $homeworkServerCalls);
+
+    $baseUrl = $this->htmlParser->getBaseUrl($this->response);
+    foreach ($nextWeekClasses as $classDetails) {
+      if ($classDetails->hasHomework()) {
+//        $this->fetchHomeworkDetails($classDetails, $baseUrl);
+      }
+    }
+
+    $classes = array_merge($classes,$nextWeekClasses);
 
     return $classes;
   }
@@ -91,13 +138,22 @@ class SomtodayWebBroker {
   function redirectToAug() {
     $action = $this->htmlParser->getAction($this->response);
     $saml = $this->htmlParser->getSAMLResponse($this->response);
-    return $this->makeHttpRequest($action, self::URL_BASE, true, 'SAMLResponse=' . rawurlencode($saml));
+    return $this->makeHttpRequest(
+      $action,
+      self::URL_BASE,
+      true,
+      'SAMLResponse=' . rawurlencode($saml));
   }
 
   function selectSchool($somtodayUser) {
-    return $this->makeHttpRequest(self::URL_BASE . self::URL_SCHOOL, self::URL_BASE, true, 'organisatieSearchField--selected-value-1=' .
-    $somtodayUser->getSchoolId() .
-    '&organisatieSearchFieldPanel:organisatieSearchFieldPanel_body:organisatieSearchField=' . $somtodayUser->getSchoolName());
+    return $this->makeHttpRequest(
+      self::URL_BASE . self::URL_SCHOOL,
+      self::URL_BASE,
+      true,
+      'organisatieSearchField--selected-value-1=' .
+      $somtodayUser->getSchoolId() .
+      '&organisatieSearchFieldPanel:organisatieSearchFieldPanel_body:organisatieSearchField=' .
+      $somtodayUser->getSchoolName());
   }
 
   function setUsername($action, $auth, $somtodayUser) {
@@ -137,9 +193,6 @@ class SomtodayWebBroker {
     ));
     $request->addPostParameter($payload);
 
-    echo ('*** REQUEST ***');
-    var_dump($request);
-
     try {
       $this->response = $request->send();
       echo '*** RESPONSE ***';
@@ -157,9 +210,52 @@ class SomtodayWebBroker {
     }
   }
 
+  private function makeAjaxRequest($url, $referer, $baseUrl, $id, $payload) {
+
+    printMessage("makeAjaxRequest $url");
+
+    $httpHeader = array(
+      "Referer: $referer",
+      "Sec-Fetch-Dest: empty",
+      "Sec-Fetch-Mode: cors",
+      "Sec-Fetch-Site: same-origin",
+      "Wicket-Ajax: true",
+      "Wicket-Ajax-BaseURL: $baseUrl",
+      "Wicket-FocusedElementId: $id",
+      "Content-Type: application/x-www-form-urlencoded"
+    );
+
+    curl_setopt_array($this->curl, array(
+      CURLOPT_URL => $url,
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_ENCODING => "",
+      CURLOPT_MAXREDIRS => 10,
+      CURLOPT_TIMEOUT => 0,
+      CURLOPT_FOLLOWLOCATION => true,
+      CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+//          CURLOPT_CUSTOMREQUEST => "POST",
+      // Have to use the "old" non-compliant CURLOPT_POST, due to redirect from
+      // POST to GET by mijnknltb.toernooi.nl
+      CURLOPT_POST => true,
+      CURLOPT_HTTPHEADER => $httpHeader
+    ));
+
+    if (!is_null($payload)) {
+      curl_setopt($this->curl, CURLOPT_POSTFIELDS, $payload);
+    }
+
+    var_dump($url, $baseUrl, $id);
+
+    $this->response = curl_exec($this->curl);
+
+    var_dump($this->response);
+
+    return $this->response;
+  }
+
   private function makeHttpRequest($url, $referer, $isPostRequest, $payload) {
 
-    var_dump($url);
+    printMessage("makeHttpRequest $url");
 
     $httpHeader = array(
 //      "Origin: https://somtoday.nl",
@@ -191,13 +287,16 @@ class SomtodayWebBroker {
     }
 
     $this->response = curl_exec($this->curl);
+
+    var_dump($this->response);
+
     return $this->response;
   }
 
   private function makeGetRequest($url, $referer) {
     // $referer is needed to select student (after initial login to the school site)
 
-    var_dump($url);
+    printMessage("makeGetRequest $url");
 
     $httpHeader = array(
       "Referer: $referer",
