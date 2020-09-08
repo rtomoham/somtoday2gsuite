@@ -100,7 +100,7 @@ class GoogleApiBroker {
       foreach ($events->getItems() as $event) {
         $summary = $event->getSummary();
         if (! (false === strpos($summary, self::STRING_CALENDAR_DESCRIPTION_PREFIX))) {
-          $this->calendarService->events->delete($googleCalendarId, $event->getId());
+          $this->deleteEvent($googleCalendarId, $event->getId());
         }
       }
       $pageToken = $events->getNextPageToken();
@@ -109,6 +109,22 @@ class GoogleApiBroker {
         $events = $this->calendarService->events->listEvents($googleCalendarId, $optParams);
       } else {
         break;
+      }
+    }
+  }
+  
+  private function deleteEvent($googleCalendarId, $eventId) {
+    $timer = BackoffTimer::getInstance();
+    try {
+      $this->calendarService->events->delete($googleCalendarId, $eventId);
+      $timer->sleep('Deleted ' . $eventId);
+    } catch (Exception $e) {
+      if (403 == $e->getCode()) {
+        $timer->incrementShortSleep();
+        $timer->sleep('Hit GSuite\'s rate limit, adjusted window');
+        $this->deleteEvent($googleCalendarId, $eventId);
+      } else {
+        throw($e);
       }
     }
   }
