@@ -79,8 +79,11 @@ class Somtoday2GSuite {
       }
       $this->somtodayWebBroker->getStudent($this->somtodayUser->getStudentIndex());
       $classes = $this->somtodayWebBroker->getRoster();
+      
+      if (0 < count($classes)) {
+        $this->googleApiBroker->refreshCalendar($classes);
+      }
 
-      $this->googleApiBroker->refreshCalendar($classes);
     }   
   }
 }
