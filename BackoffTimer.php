@@ -19,6 +19,12 @@ class BackoffTimer {
   }
 
   function init($short, $long) {
+    if (1 > $short) {
+      $short = 1;
+    }
+    if (60 > $long) {
+      $long = 60;
+    }
     $this->backoff_time_short = $short;
     $this->backoff_time_long = $long;
   }
