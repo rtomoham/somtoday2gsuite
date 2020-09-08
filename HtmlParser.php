@@ -15,7 +15,7 @@ class HtmlParser {
     // Suppress DOM warnings
     libxml_use_internal_errors(true);
     $this->domDoc = new DOMDocument();
-    $this->timezone = new DateTimeZone(SOMTODAY_TIMEZONE); 
+    $this->timezone = new DateTimeZone(SOMTODAY_TIMEZONE);
   }
 
   static function getInstance() {
@@ -25,14 +25,35 @@ class HtmlParser {
     return self::$instance;
   }
 
+  /*
+  * Check if the $htmlString contains the continue button, which is required
+  * since we do not have javascript running
+  */
+  function findContinue($htmlString) {
+    $this->domDoc->loadHTML($this->cleanUpString($htmlString));
+    libxml_clear_errors();
+
+    $inputs = $this->domDoc->getElementsByTagName('input');
+    if (is_null($inputs)) {
+      return false;
+    }
+    foreach ($inputs as $input) {
+      $value = $input->getAttribute('value');
+      if (0 == strcmp('Continue', $value)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function findSignInForm($htmlString) {
     return $this->findForm($htmlString, 'signInForm');
   }
-  
+
   function findPasswordForm($htmlString) {
     return $this->findForm($htmlString, 'passwordForm');
   }
-  
+
   function isUpdating($htmlString) {
     $this->domDoc->loadHTML($this->cleanUpString($htmlString));
     libxml_clear_errors();
@@ -49,24 +70,39 @@ class HtmlParser {
     }
     return false;
   }
-  
+
   function isError($htmlString) {
     $this->domDoc->loadHTML($this->cleanUpString($htmlString));
     libxml_clear_errors();
 
+    $htmls = $this->domDoc->getElementsByTagName('html');
+    if (is_null($htmls)) {
+      return false;
+    }
+    foreach ($htmls as $html) {
+      $class = $html->getAttribute('class');
+      var_dump($class);
+      if (0 == strcmp('error', $class)) {
+        return true;
+      }
+    }
+    return false;
+/*
     $divs = $this->domDoc->getElementsByTagName('div');
     if (is_null($divs)) {
       return false;
     }
     foreach ($divs as $div) {
       $class = $div->getAttribute('class');
+      var_dump($class);
       if (0 == strcmp('stpanel--error--message', $class)) {
         return true;
       }
     }
     return false;
+*/
   }
-  
+
   private function findForm($htmlString, $formName) {
     $pos = strpos($htmlString, $formName);
     if (false === $pos) {
@@ -78,7 +114,7 @@ class HtmlParser {
     }
     return $pos;
   }
-  
+
   function getAction($htmlString) {
     $this->domDoc->loadHTML($this->cleanUpString($htmlString));
     libxml_clear_errors();
@@ -92,8 +128,8 @@ class HtmlParser {
       }
     }
   }
-  
-  function getClasses($htmlString) {
+
+  function getClasses($htmlString, $homeworkServerCalls) {
     $this->domDoc->loadHTML($this->cleanUpString($htmlString));
     libxml_clear_errors();
 
@@ -114,23 +150,28 @@ class HtmlParser {
           } elseif (0 == strcmp($class2, 'afspraakLocatie')) {
             $classLocation = $div2->textContent;
           } elseif (0 == strcmp($class2, 'toekenning truncate')) {
-            $link = $div2->getElementsByTagName('a')[0]->getAttribute('href');
+            $a = $div2->getElementsByTagName('a')[0];
+            $id = $a->getAttribute('id');
+            $link = $a->getAttribute('href');
             $spans = $div2->getElementsByTagName('span');
             $classHomework = $spans[2]->getAttribute('class');
-            $homework = new Homework($spans[2]->textContent, $link);
+            $homework = new Homework($id, $spans[2]->textContent, $link);
+            if (array_key_exists($id, $homeworkServerCalls)) {
+              $homework->setServerCall($homeworkServerCalls[$id]);
+            }
             $homework->setDone(0 == strcmp('huiswerk-gemaakt', $classHomework));
           } elseif (0 == strcmp($class2, 'kwtinfo')) {
             switch ($kwtinfoCounter) {
-              case 0: 
+              case 0:
                 // this line contains the location, so ignore
               break;
-              case 1: 
+              case 1:
                 $start = $this->getKwtinfo($div2->textContent);
               break;
-              case 2: 
+              case 2:
                 $end = $this->getKwtinfo($div2->textContent);
               break;
-              default: 
+              default:
                 // ignore
               break;
             }
@@ -143,12 +184,29 @@ class HtmlParser {
     }
     return $classes;
   }
-  
+
+  function getHomeworkServerCalls($text) {
+    $regExId =
+      '/#id\\S+\'\\)\\.bindServerCall\\(\\{ajax\\:\\ \\{"u":"\\..+","m/';
+    $regExServerCall =
+      '/\'\\)\\.bindServerCall\\(\\{ajax\\:\\ \\{"u"\\:"\\./';
+
+    preg_match_all($regExId, $text, $matches);
+    $results = [];
+    foreach ($matches[0] as $match) {
+      $splitMatch = preg_split($regExServerCall, $match);
+      $splitMatch[0] = substr($splitMatch[0], 1, strlen($splitMatch[0])-1);
+      $splitMatch[1] = substr($splitMatch[1], 0, strpos($splitMatch[1], '"'));
+      $results[$splitMatch[0]] = $splitMatch[1];
+    }
+    return $results;
+  }
+
   function getKwtinfo($html) {
     $html = substr($html, strpos($html, '<span>') + 5, 16);
     return $this->getDateTimeImmutable($html);
   }
-  
+
   function getSAMLResponse($htmlString) {
     $this->domDoc->loadHTML($this->cleanUpString($htmlString));
     libxml_clear_errors();
@@ -160,25 +218,29 @@ class HtmlParser {
         $value = $input->getAttribute('value');
         return $value;
       }
-    }    
+    }
   }
-  
+
   /**
   * DEPRECATED
   */
   function getSelectLeerling($htmlString) {
     return $this->getBaseUrl($htmlString) . '-1.0-leerling-0-selectLeerling';
   }
-  
-  function getBaseUrl($htmlString) {
+
+  function getBaseUrl($htmlString, $complete = true) {
     $pos = strpos($htmlString, 'baseUrl');
     if (! (false === $pos)) {
       $baseUrl = substr($htmlString, $pos + 9);
-      $pos = strpos($baseUrl, '"');
+      if ($complete) {
+        $pos = strpos($baseUrl, '"');
+      } else {
+        $pos = strpos($baseUrl, '&');
+      }
       return substr($baseUrl, 0, $pos);
     }
   }
-  
+
   private function getDateTimeImmutable($date) {
     return DateTimeImmutable::createFromFormat(self::DATETIMEFORMAT, $date, $this->timezone);
   }
