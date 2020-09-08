@@ -54,7 +54,7 @@ class GoogleApiBroker {
   function addClasses($classes, $googleCalendarId) {
     foreach ($classes as $classDetails) {
       $this->addEvent($classDetails, $googleCalendarId);
-      BackOffTimer::getInstance()->sleep('Short sleep after adding ' . $classDetails->toString());
+      BackOffTimer::getInstance()->sleep('GCAL ADD: ' . $classDetails->toString());
     }
   }
 
