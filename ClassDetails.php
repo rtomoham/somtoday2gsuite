@@ -36,10 +36,10 @@ Class ClassDetails {
       } else {
         $description .= 'TODO: ';
       }
-      $description .= $this->homework->getTask();
-      $description .= "\n";
-//      $description .= $this->homework->getServerCall();
+//      $description .= $this->homework->getTask();
 //      $description .= "\n";
+      $description .= $this->homework->getDetails();
+      $description .= "\n";
       $description .= $this->homework->getLink();
     }
     return $description;

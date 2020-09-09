@@ -59,17 +59,15 @@ class SomtodayWebBroker {
     $homework = $classDetails->getHomework();
 
     $url =
-      'https://augustinianum-elo.somtoday.nl/home' .
-      $homework->getServerCall();
+      'https://augustinianum-elo.somtoday.nl/' .
+      $homework->getServerCall($baseUrl);
     $referer = 'https://augustinianum-elo.somtoday.nl/home/roster';
-    $id = $homework->getId();
     $payload = 'argCount=0&methodName=click&callId=1';
 
     $this->makeAjaxRequest(
       $url,
       $referer,
       $baseUrl,
-      $id,
       $payload);
 
     $timer->sleep('Fetched homework details');
@@ -92,7 +90,8 @@ class SomtodayWebBroker {
   }
 
   function getRoster() {
-    $this->makeGetRequest('https://augustinianum-elo.somtoday.nl/home/roster', NULL);
+    $rosterUrl = 'https://augustinianum-elo.somtoday.nl/home/roster';
+    $this->makeGetRequest($rosterUrl, NULL);
     $homeworkServerCalls =
       $this->htmlParser->getHomeworkServerCalls($this->response);
     $classes =
@@ -102,6 +101,14 @@ class SomtodayWebBroker {
     foreach ($classes as $classDetails) {
       if ($classDetails->hasHomework()) {
         $this->fetchHomeworkDetails($classDetails, $baseUrl);
+
+        $details = $this->htmlParser->getHomeworkDetails($this->response);
+        if (!is_null($details)) {
+          $classDetails->getHomework()->setDetails($details);
+        }
+
+        $this->makeGetRequest($rosterUrl, NULL);
+        $baseUrl = $this->htmlParser->getBaseUrl($this->response);
       }
     }
 
@@ -112,7 +119,8 @@ class SomtodayWebBroker {
     // Output
 //    echo $nextMonday->format('d-m-Y');
 
-    $this->makeGetRequest('https://augustinianum-elo.somtoday.nl/home/roster?datum=' . $nextMonday->format('d-m-Y'), NULL);
+    $rosterUrl = 'https://augustinianum-elo.somtoday.nl/home/roster?datum=' . $nextMonday->format('d-m-Y');
+    $this->makeGetRequest($rosterUrl, NULL);
 
     $homeworkServerCalls =
       $this->htmlParser->getHomeworkServerCalls($this->response);
@@ -210,9 +218,9 @@ class SomtodayWebBroker {
     }
   }
 
-  private function makeAjaxRequest($url, $referer, $baseUrl, $id, $payload) {
+  private function makeAjaxRequest($url, $referer, $baseUrl, $payload) {
 
-    printMessage("makeAjaxRequest $url");
+    printMessage("makeAjaxRequest $url $baseUrl");
 
     $httpHeader = array(
       "Referer: $referer",
@@ -221,7 +229,7 @@ class SomtodayWebBroker {
       "Sec-Fetch-Site: same-origin",
       "Wicket-Ajax: true",
       "Wicket-Ajax-BaseURL: $baseUrl",
-      "Wicket-FocusedElementId: $id",
+//      "Wicket-FocusedElementId: $id",
       "Content-Type: application/x-www-form-urlencoded"
     );
 
@@ -244,7 +252,7 @@ class SomtodayWebBroker {
       curl_setopt($this->curl, CURLOPT_POSTFIELDS, $payload);
     }
 
-    var_dump($url, $baseUrl, $id);
+    var_dump($url, $baseUrl);
 
     $this->response = curl_exec($this->curl);
 

@@ -9,9 +9,9 @@ if ($argc > 1) {
   if ('test' == $argv[1]) {
     echo("TEST: 'test' argument provided, so running test.\n\n");
     $somtoday2gsuite = new Somtoday2GSuite(true);
-  } else {
-    $somtoday2gsuite = new Somtoday2GSuite();
   }
+} else {
+  $somtoday2gsuite = new Somtoday2GSuite();
 }
 $somtoday2gsuite->refresh();
 ?>

@@ -185,18 +185,42 @@ class HtmlParser {
     return $classes;
   }
 
+  function getHomeworkDetails($html) {
+    $this->domDoc->loadHTML($this->cleanUpString($html));
+    libxml_clear_errors();
+
+    $divs = $this->domDoc->getElementsByTagName('div');
+    foreach ($divs as $div) {
+      $divClass = $div->getAttribute('class');
+      if (0 == strcmp($divClass, 'm-wrapper active')) {
+        $spans = $div->getElementsByTagName('span');
+        foreach ($spans as $span) {
+          $spanClass = $span->getAttribute('class');
+          if (0 == strcmp($spanClass, 'huiswerk')) {
+            return str_replace('\<br\>', '___', $span_textContent);
+          }
+        }
+      }
+    }
+  }
+
   function getHomeworkServerCalls($text) {
     $regExId =
       '/#id\\S+\'\\)\\.bindServerCall\\(\\{ajax\\:\\ \\{"u":"\\..+","m/';
     $regExServerCall =
-      '/\'\\)\\.bindServerCall\\(\\{ajax\\:\\ \\{"u"\\:"\\./';
+//      '/\'\\)\\.bindServerCall\\(\\{ajax\\:\\ \\{"u"\\:"\\./';
+      '/\'\\)\\.bindServerCall\\(\\{ajax\\:\\ \\{"u"\\:"\\.\/roster?/';
 
     preg_match_all($regExId, $text, $matches);
     $results = [];
     foreach ($matches[0] as $match) {
       $splitMatch = preg_split($regExServerCall, $match);
-      $splitMatch[0] = substr($splitMatch[0], 1, strlen($splitMatch[0])-1);
-      $splitMatch[1] = substr($splitMatch[1], 0, strpos($splitMatch[1], '"'));
+      $splitMatch[0] = substr($splitMatch[0], 1, strlen($splitMatch[0]) - 1);
+      $start = strpos($splitMatch[1], '-');
+      $splitMatch[1] = substr(
+        $splitMatch[1],
+        $start,
+        strpos($splitMatch[1], '"') - $start);
       $results[$splitMatch[0]] = $splitMatch[1];
     }
     return $results;

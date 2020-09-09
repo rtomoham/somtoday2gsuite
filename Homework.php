@@ -6,11 +6,19 @@ class Homework {
   private $link;
   private $task;
   private $done = false;
+  private $details = NULL;
 
   function __construct($id, $task, $link) {
     $this->id = $id;
     $this->task = $task;
     $this->link = $link;
+  }
+
+  function getDetails() {
+    if (is_null($this->details)) {
+      return 'No details.';
+    }
+    return $this->details;
   }
 
   function getId() {
@@ -21,8 +29,8 @@ class Homework {
     return $this->link;
   }
 
-  function getServerCall() {
-    return $this->serverCall;
+  function getServerCall($baseUrl) {
+    return $baseUrl . $this->serverCall;
   }
 
   function getTask() {
@@ -33,6 +41,9 @@ class Homework {
     return $this->done;
   }
 
+  function setDetails($details) {
+    $this->details = $details;
+  }
   function setDone($done = false) {
     $this->done = $done;
   }
