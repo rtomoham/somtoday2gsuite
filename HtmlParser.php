@@ -198,7 +198,7 @@ class HtmlParser {
           $spanClass = $span->getAttribute('class');
           if (0 == strcmp($spanClass, 'huiswerk')) {
 //            return str_replace('\<br\>', '___', $span->textContent);
-            return preg_replace('<br[^>]*>', '___', $span->textContent);
+            return preg_replace('/<br\\s*\/>/', '___', $span->textContent);
           }
         }
       }
