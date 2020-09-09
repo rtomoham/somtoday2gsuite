@@ -18,7 +18,7 @@ class Somtoday2GSuite {
   private $somtodaySettings;
   private $backoffTimers;
 
-  function __construct() {
+  function __construct($test = false) {
     $this->processIniFile();
     $this->htmlParser = HtmlParser::getInstance();
     BackoffTimer::getInstance()->init(
